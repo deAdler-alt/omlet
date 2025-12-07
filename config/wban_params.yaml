@@ -1,0 +1,56 @@
+# config/wban_params.yaml
+# Plik konfiguracyjny symulacji WBAN
+# Źródła danych:
+# [19] Deepak & Babu (2016) - parametry 2.4 GHz IEEE 802.15.6
+# [3] Ghamari et al. (2016) - lokalizacje sensorów
+# [10] Januszkiewicz (2018) - koncepcja body shadowing
+
+system:
+  freq: 2.4e9  # 2.4 GHz (IEEE 802.15.6 Narrowband)
+
+# Model energetyczny wg [19], Tabela 7 (Nordic nRF24L01+)
+energy_model:
+  E_elec: 11.25e-9    # J/bit (Energia układów elektronicznych TX/RX)
+  E_amp_coeff: 1.0    # Współczynnik sprawności wzmacniacza (uproszczony)
+  P_min_circuit: 0.0  # Minimalna moc obwodu (W)
+  E_init: 2.0         # Początkowa energia baterii (J)
+
+# Model propagacji wg [19], Tabela 6 (On-body CM3)
+propagation_model:
+  d0: 0.1             # m (odległość referencyjna 10 cm)
+  # Parametry dla Line-of-Sight (LOS)
+  PL0_LOS: 35.2       # dB
+  n_LOS: 3.11         # Wykładnik strat
+  sigma_LOS: 6.1      # Odchylenie standardowe cieniowania (dB)
+  # Parametry dla Non-Line-of-Sight (NLOS) - Body Shadowing
+  PL0_NLOS: 48.4      # dB
+  n_NLOS: 5.9         # Wykładnik strat (drastyczny wzrost tłumienia)
+  sigma_NLOS: 5.0     # dB
+  # Parametry odbiornika
+  P_sens: -85.0       # Czułość odbiornika (dBm)
+  M_safe: 5.0         # Margines bezpieczeństwa (dB)
+
+# Mapa ciała znormalizowana [0,1]x[0,1]
+# Oś Y odwrócona (0 = góra/głowa, 1 = dół/stopy) dla łatwiejszego rysowania
+body_zones:
+  head:  {x_min: 0.40, x_max: 0.60, y_min: 0.05, y_max: 0.15}
+  chest: {x_min: 0.30, x_max: 0.70, y_min: 0.20, y_max: 0.45}
+  waist: {x_min: 0.30, x_max: 0.70, y_min: 0.45, y_max: 0.55}
+  l_arm: {x_min: 0.10, x_max: 0.30, y_min: 0.25, y_max: 0.55} # Lewa ręka
+  r_arm: {x_min: 0.70, x_max: 0.90, y_min: 0.25, y_max: 0.55} # Prawa ręka
+  l_leg: {x_min: 0.35, x_max: 0.48, y_min: 0.60, y_max: 0.95} # Lewa noga
+  r_leg: {x_min: 0.52, x_max: 0.65, y_min: 0.60, y_max: 0.95} # Prawa noga
+
+# Definicje scenariuszy i sensorów
+scenarios:
+  S1: # Standard Medical (8 sensorów)
+    P_TX_max: 0 # dBm
+    sensors:
+      - {id: 0, type: 'EEG', zone: 'head', data_rate: 500}
+      - {id: 1, type: 'ECG', zone: 'chest', data_rate: 1000}
+      - {id: 2, type: 'Temp', zone: 'chest', data_rate: 10}
+      - {id: 3, type: 'SpO2', zone: 'l_arm', data_rate: 100}
+      - {id: 4, type: 'Motion_Waist', zone: 'waist', data_rate: 500}
+      - {id: 5, type: 'Motion_RArm', zone: 'r_arm', data_rate: 500}
+      - {id: 6, type: 'Motion_LLeg', zone: 'l_leg', data_rate: 500}
+      - {id: 7, type: 'Motion_RLeg', zone: 'r_leg', data_rate: 500}
