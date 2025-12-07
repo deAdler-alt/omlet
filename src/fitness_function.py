@@ -14,6 +14,63 @@ class WBANFitness:
         
         # Maksymalna moc nadajnika zdefiniowana w scenariuszu
         self.max_p_tx = self.scenario['P_TX_max']
+    
+    def get_metrics(self, solution):
+        """
+        Pomocnicza metoda zwracająca szczegółowe metryki dla danego rozwiązania.
+        Używana po optymalizacji do raportowania wyników (nie wpływa na fitness).
+        """
+        decoded = self.decode_solution(solution)
+        sensors = decoded[:-1]
+        hub = decoded[-1]
+        
+        total_energy_J = 0.0
+        reliability_penalty = 0.0
+        geometric_penalty = 0.0
+        node_energies = [] # Do obliczenia czasu życia
+        
+        # 1. Walidacja geometryczna
+        for s in sensors:
+            zone_name = s['def']['zone']
+            zone_limits = self.config['body_zones'][zone_name]
+            x, y = s['pos']
+            if not (zone_limits['x_min'] <= x <= zone_limits['x_max'] and 
+                    zone_limits['y_min'] <= y <= zone_limits['y_max']):
+                geometric_penalty += 1000.0
+
+        # 2. Fizyka
+        for s in sensors:
+            d = self.prop_model.calculate_distance(s['pos'], hub['pos'])
+            is_los = self.prop_model.is_line_of_sight(s['pos'], hub['pos'])
+            pl_db = self.prop_model.calculate_path_loss(d, is_los)
+            req_tx = self.energy_model.calculate_required_tx_power(pl_db)
+            
+            margin = self.max_p_tx - req_tx
+            if margin < 0:
+                reliability_penalty += abs(margin) * 50.0
+                req_tx = self.max_p_tx
+            
+            bits_per_sec = s['def']['data_rate']
+            energy_node = self.energy_model.calculate_energy_consumption(bits_per_sec, req_tx)
+            
+            total_energy_J += energy_node
+            node_energies.append(energy_node)
+            
+        # 3. Obliczenie czasu życia sieci (First Node Dies)
+        # T_life = E_init / max(E_node)  (liczba sekund/rund)
+        e_init = self.config['energy_model']['E_init']
+        if max(node_energies) > 0:
+            network_lifetime = e_init / max(node_energies)
+        else:
+            network_lifetime = 0
+
+        return {
+            'E_total_real': total_energy_J,
+            'P_rel': reliability_penalty,
+            'P_geo': geometric_penalty,
+            'T_life': network_lifetime
+        }
+
 
     def decode_solution(self, solution):
         """
